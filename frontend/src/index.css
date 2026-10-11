@@ -1,0 +1,31 @@
+@font-face {
+  font-family: 'IBM Plex Sans Thai';
+  src: url('/assets/fonts/IBMPlexSansThai-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'IBM Plex Sans Thai';
+  src: url('/assets/fonts/IBMPlexSansThai-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'IBM Plex Sans Thai';
+  src: url('/assets/fonts/IBMPlexSansThai-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'IBM Plex Sans Thai';
+  src: url('/assets/fonts/IBMPlexSansThai-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-display: swap;
+}
+
+body {
+  margin: 0;
+}

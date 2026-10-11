@@ -1,0 +1,72 @@
+@Catalog.Api_HostAddress = http://localhost:5164
+@AdminToken = <paste-an-admin-access-token>
+
+GET {{Catalog.Api_HostAddress}}/api/catalog/health
+Accept: application/json
+
+###
+
+GET {{Catalog.Api_HostAddress}}/api/catalog/categories
+Accept: application/json
+
+###
+
+POST {{Catalog.Api_HostAddress}}/api/catalog/categories
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{ "name": "Drinks" }
+
+###
+
+PUT {{Catalog.Api_HostAddress}}/api/catalog/categories/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{ "name": "Beverages" }
+
+###
+
+DELETE {{Catalog.Api_HostAddress}}/api/catalog/categories/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{AdminToken}}
+
+###
+
+GET {{Catalog.Api_HostAddress}}/api/catalog/products?q=tea&sort=price_asc&page=1&pageSize=20
+Accept: application/json
+
+###
+
+GET {{Catalog.Api_HostAddress}}/api/catalog/products/00000000-0000-0000-0000-000000000000
+Accept: application/json
+
+###
+
+POST {{Catalog.Api_HostAddress}}/api/catalog/products
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{ "name": "Green tea", "description": "Hot", "price": 1290.00, "categoryId": null, "stock": 10 }
+
+###
+
+PUT {{Catalog.Api_HostAddress}}/api/catalog/products/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{ "name": "Green tea", "description": "Cold", "price": 1390.00, "categoryId": null }
+
+###
+
+DELETE {{Catalog.Api_HostAddress}}/api/catalog/products/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{AdminToken}}
+
+###
+
+PUT {{Catalog.Api_HostAddress}}/api/catalog/products/00000000-0000-0000-0000-000000000000/stock
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{ "quantity": 40 }
+
+###

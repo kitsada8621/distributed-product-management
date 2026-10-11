@@ -1,0 +1,6 @@
+@Auth.Api_HostAddress = http://localhost:5183
+
+GET {{Auth.Api_HostAddress}}/api/auth/health
+Accept: application/json
+
+###

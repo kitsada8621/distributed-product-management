@@ -1,0 +1,9 @@
+**/bin
+**/obj
+keys/
+**/*.db*
+tests/
+.gitignore
+
+src/Auth.Api/appsettings.example.json
+src/Auth.Api/appsettings.Development.json

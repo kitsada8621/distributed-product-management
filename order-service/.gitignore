@@ -1,0 +1,28 @@
+# Local environment (copy .env.example to .env)
+.env
+.env.*
+!.env.example
+
+# SQLite database files
+*.db
+*.db-wal
+*.db-shm
+
+# Build output and test artifacts
+/bin/
+/out/
+*.exe
+*.test
+*.out
+coverage.*
+
+# Keys and certificates
+*.pem
+*.key
+
+# IDE and OS files
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

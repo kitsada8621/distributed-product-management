@@ -1,0 +1,81 @@
+_format_version: "3.0"
+
+services:
+  - name: auth-service
+    url: http://auth-service:8080
+    routes:
+      - name: auth-login
+        paths:
+          - /api/auth/login
+        methods:
+          - POST
+        strip_path: false
+        plugins:
+          - name: rate-limiting
+            config:
+              minute: 5
+              hour: 20
+              policy: local
+              limit_by: ip
+          - name: post-function
+            config:
+              header_filter:
+                - |
+                  if kong.response.get_status() == 429 then
+                    kong.response.set_header("Content-Type", "application/json; charset=utf-8")
+                    kong.response.clear_header("Content-Length")
+                  end
+              body_filter:
+                - |
+                  if kong.response.get_status() == 429 then
+                    ngx.arg[1] = '{"status":429,"success":false,"code":"RATE_LIMITED","message":"Too many requests","data":null,"meta":null,"errors":null}'
+                    ngx.arg[2] = true
+                  end
+      - name: auth
+        paths:
+          - /api/auth
+        strip_path: false
+
+  - name: catalog-service
+    url: http://catalog-service:8080
+    routes:
+      - name: catalog
+        paths:
+          - /api/catalog
+        strip_path: false
+
+  - name: order-service
+    url: http://order-service:8080
+    routes:
+      - name: orders
+        paths:
+          - /api/orders
+        strip_path: false
+
+plugins:
+  - name: correlation-id
+    config:
+      header_name: X-Correlation-Id
+      generator: uuid
+      echo_downstream: true
+  - name: cors
+    config:
+      origins:
+        - http://localhost:5173
+        - http://localhost:8080
+      credentials: true
+      methods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+      headers:
+        - Authorization
+        - Content-Type
+        - Idempotency-Key
+        - X-CSRF-Token
+        - X-Correlation-Id
+      exposed_headers:
+        - X-Correlation-Id
+      max_age: 3600

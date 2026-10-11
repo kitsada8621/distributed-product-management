@@ -1,0 +1,9 @@
+keys/*.pem
+*.db
+*.db-shm
+*.db-wal
+bin/
+obj/
+scripts/
+
+appsettings.Development.json

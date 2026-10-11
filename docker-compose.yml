@@ -1,0 +1,121 @@
+name: distributed-product-management
+
+services:
+  kafka:
+    image: apache/kafka:4.2.2
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,INTERNAL://:29092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,INTERNAL://kafka:29092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+  auth-service:
+    build: ./auth-service
+    environment:
+      Jwt__Issuer: auth-service
+      Jwt__PrivateKeyPath: /run/secrets/jwt_private_key
+      Csrf__Secret: ${CSRF_SECRET}
+      Spa__Origin: ${SPA_ORIGIN}
+      AuthCookie__Secure: ${AUTH_COOKIE_SECURE:-true}
+      AuthCookie__SameSite: ${AUTH_COOKIE_SAMESITE:-Strict}
+      ResetLink__BaseUrl: ${RESET_LINK_BASE_URL}
+      Smtp__Host: ${SMTP_HOST:-}
+      Smtp__Port: ${SMTP_PORT:-587}
+      Smtp__Username: ${SMTP_USERNAME:-}
+      Smtp__Password: ${SMTP_PASSWORD:-}
+      Smtp__Crypto: ${SMTP_CRYPTO:-tls}
+      Smtp__FromAddress: ${SMTP_FROM_ADDRESS:-no-reply@example.com}
+    secrets:
+      - jwt_private_key
+    volumes:
+      - auth-data:/data
+
+  catalog-service:
+    build: ./catalog-service
+    environment:
+      Jwt__Issuer: auth-service
+      Jwt__PublicKeyPath: /run/secrets/jwt_public_key
+      Kafka__BootstrapServers: kafka:29092
+    secrets:
+      - jwt_public_key
+    volumes:
+      - catalog-data:/data
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  order-service:
+    build: ./order-service
+    environment:
+      JWT_ISSUER: auth-service
+      JWT_PUBLIC_KEY_PATH: /run/secrets/jwt_public_key
+      KAFKA_ENABLED: "true"
+      KAFKA_BROKERS: kafka:29092
+    secrets:
+      - jwt_public_key
+    volumes:
+      - order-data:/data
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  kong:
+    image: kong:3.9.3
+    ports:
+      - "8000:8000"
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
+      KONG_PROXY_LISTEN: 0.0.0.0:8000
+      KONG_ADMIN_LISTEN: "off"
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+    configs:
+      - source: kong_config
+        target: /kong/kong.yml
+    depends_on:
+      - auth-service
+      - catalog-service
+      - order-service
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - kong
+
+volumes:
+  auth-data:
+  catalog-data:
+  order-data:
+
+configs:
+  kong_config:
+    file: ./kong/kong.yml
+
+secrets:
+  jwt_private_key:
+    file: ./auth-service/keys/jwt-private.pem
+  jwt_public_key:
+    file: ./auth-service/keys/jwt-public.pem
