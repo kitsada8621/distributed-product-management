@@ -2,15 +2,15 @@
 
 ระบบจัดการสินค้าและคำสั่งซื้อแบบ Distributed System: แต่ละบริการแยกกัน มีฐานข้อมูล SQLite ของตนเอง และคุยกันผ่าน Kafka เท่านั้น
 
-| ส่วนของระบบ | เทคโนโลยี |
-|---|---|
-| Frontend | React SPA, TypeScript, Vite, MUI (เสิร์ฟด้วย Nginx) |
-| API Gateway | Kong (DB-less) |
-| Auth / Catalog Service | .NET 10 Web API |
-| Order Service | Go + Fiber |
-| ส่งข้อความระหว่างบริการ | Apache Kafka (KRaft, JSON) |
-| ฐานข้อมูล | SQLite แยกไฟล์ตามบริการ |
-| รันระบบ | Docker Compose |
+| ส่วนของระบบ             | เทคโนโลยี                                           |
+| ----------------------- | --------------------------------------------------- |
+| Frontend                | React SPA, TypeScript, Vite, MUI (เสิร์ฟด้วย Nginx) |
+| API Gateway             | Kong (DB-less)                                      |
+| Auth / Catalog Service  | .NET 10 Web API                                     |
+| Order Service           | Go + Fiber                                          |
+| ส่งข้อความระหว่างบริการ | Apache Kafka (KRaft, JSON)                          |
+| ฐานข้อมูล               | SQLite แยกไฟล์ตามบริการ                             |
+| รันระบบ                 | Docker Compose                                      |
 
 ---
 
@@ -52,11 +52,13 @@ openssl rsa -in auth-service/keys/jwt-private.pem -pubout -out auth-service/keys
 
 ไฟล์ `.env` ไม่ถูกเก็บใน Git ให้คัดลอกจาก `.env.example` ในโฟลเดอร์ที่ใช้งาน
 
-| ไฟล์ตัวอย่าง | สร้างเป็น | ใช้เมื่อ |
-|---|---|---|
-| `.env.example` | `.env` | **จำเป็น** สำหรับรันด้วย Docker Compose |
-| `frontend/.env.example` | `frontend/.env` | รันหน้าเว็บนอก Docker (`npm run dev`) |
-| `order-service/.env.example` | `order-service/.env` | รัน Order Service นอก Docker |
+| ไฟล์ตัวอย่าง                                               | สร้างเป็น                                          | ใช้เมื่อ                                |
+| ---------------------------------------------------------- | -------------------------------------------------- | --------------------------------------- |
+| `.env.example`                                             | `.env`                                             | **จำเป็น** สำหรับรันด้วย Docker Compose |
+| `frontend/.env.example`                                    | `frontend/.env`                                    | รันหน้าเว็บนอก Docker (`npm run dev`)   |
+| `order-service/.env.example`                               | `order-service/.env`                               | รัน Order Service นอก Docker            |
+| `auth-service/src/Auth.Api/appsettings.Example.json`       | `auth-service/src/Auth.Api/appsettings.json`       | **จำเป็น** สำหรับรันด้วย Docker Compose |
+| `catalog-service/src/Catalog.Api/appsettings.Example.json` | `catalog-service/src/Catalog.Api/appsettings.json` | **จำเป็น** สำหรับรันด้วย Docker Compose |
 
 ```bash
 cp .env.example .env
@@ -66,13 +68,13 @@ cp order-service/.env.example order-service/.env
 
 ถ้ารันทั้งระบบด้วย Docker อย่างเดียว ใช้แค่ไฟล์แรกก็พอ แล้วแก้ค่าใน `.env` ดังนี้
 
-| ตัวแปร | ต้องทำอะไร |
-|---|---|
-| `CSRF_SECRET` | เปลี่ยนเป็นข้อความสุ่มยาวอย่างน้อย 32 ตัวอักษร หรือใช้คำสั่ง `openssl rand -base64 32` |
-| `SPA_ORIGIN` | ต้องตรงกับที่อยู่ที่เปิดหน้าเว็บ ค่าเริ่มต้น `http://localhost:8080` ถ้าผิด refresh token และ logout จะไม่ทำงาน |
-| `RESET_LINK_BASE_URL` | **เปลี่ยนเป็น `http://localhost:8080/reset-password`** (ค่าในตัวอย่างชี้พอร์ต 5173 ของ `npm run dev`) |
-| `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` | อีเมลและรหัสผ่านของ Admin คนแรก |
-| `SMTP_*` | ใช้เฉพาะอีเมลลืมรหัสผ่าน ใส่ค่าจาก Mailtrap หรือ Gmail หรือปล่อย `SMTP_HOST` ว่างเพื่อไม่ส่งอีเมล ส่วนอื่นใช้งานได้ปกติ |
+| ตัวแปร                                     | ต้องทำอะไร                                                                                                              |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| `CSRF_SECRET`                              | เปลี่ยนเป็นข้อความสุ่มยาวอย่างน้อย 32 ตัวอักษร หรือใช้คำสั่ง `openssl rand -base64 32`                                  |
+| `SPA_ORIGIN`                               | ต้องตรงกับที่อยู่ที่เปิดหน้าเว็บ ค่าเริ่มต้น `http://localhost:8080` ถ้าผิด refresh token และ logout จะไม่ทำงาน         |
+| `RESET_LINK_BASE_URL`                      | **เปลี่ยนเป็น `http://localhost:8080/reset-password`** (ค่าในตัวอย่างชี้พอร์ต 5173 ของ `npm run dev`)                   |
+| `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` | อีเมลและรหัสผ่านของ Admin คนแรก                                                                                         |
+| `SMTP_*`                                   | ใช้เฉพาะอีเมลลืมรหัสผ่าน ใส่ค่าจาก Mailtrap หรือ Gmail หรือปล่อย `SMTP_HOST` ว่างเพื่อไม่ส่งอีเมล ส่วนอื่นใช้งานได้ปกติ |
 
 อย่านำรหัสผ่านจริงใส่ในไฟล์ `.env.example` หรือ commit ไฟล์ `.env`
 
@@ -104,10 +106,10 @@ curl http://localhost:8000/api/orders/health
 
 เปิด **http://localhost:8080** (ใช้ชื่อ `localhost` ไม่ใช้เลข IP เพราะคุกกี้ของระบบอาศัย `localhost`)
 
-| บทบาท | บัญชี |
-|---|---|
+| บทบาท | บัญชี                                               |
+| ----- | --------------------------------------------------- |
 | Admin | อีเมลและรหัสผ่านที่ตั้งใน `SEED_ADMIN_*` ของ `.env` |
-| User | สมัครเองที่หน้า Register |
+| User  | สมัครเองที่หน้า Register                            |
 
 ลองใช้งาน: Admin สร้างหมวดหมู่และสินค้าพร้อมสต็อก → สมัครและเข้าสู่ระบบเป็น User → สั่งซื้อ (สถานะ Pending แล้วเปลี่ยนเป็นผลการจองสต็อกในไม่กี่วินาที) → Admin ยืนยันหรือปฏิเสธ
 
@@ -122,13 +124,13 @@ bash tests/api/run-all.sh             # ทดสอบ API ผ่าน Kong (�
 
 ### แก้ปัญหาเบื้องต้น
 
-| อาการ | วิธีแก้ |
-|---|---|
-| `docker compose up` ล้มเหลวเรื่อง secret หรือไฟล์ `.pem` | ทำขั้นที่ 3 ให้ครบ |
-| `variable is not set` | ยังไม่ได้ทำขั้นที่ 4 หรือไม่ได้อยู่ในโฟลเดอร์ที่มี `docker-compose.yml` |
-| พอร์ตถูกใช้อยู่ | ปิดโปรแกรมที่ใช้พอร์ต 8000, 8080 หรือ 9092 |
-| login ได้แต่หลุดทันที/refresh ไม่ทำงาน | `SPA_ORIGIN` ไม่ตรงกับที่อยู่ในเบราว์เซอร์ |
-| Order หรือ Catalog ตอบ `502` | Kafka ยังไม่พร้อม รอแล้วดู `docker compose logs kafka` |
+| อาการ                                                    | วิธีแก้                                                                 |
+| -------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `docker compose up` ล้มเหลวเรื่อง secret หรือไฟล์ `.pem` | ทำขั้นที่ 3 ให้ครบ                                                      |
+| `variable is not set`                                    | ยังไม่ได้ทำขั้นที่ 4 หรือไม่ได้อยู่ในโฟลเดอร์ที่มี `docker-compose.yml` |
+| พอร์ตถูกใช้อยู่                                          | ปิดโปรแกรมที่ใช้พอร์ต 8000, 8080 หรือ 9092                              |
+| login ได้แต่หลุดทันที/refresh ไม่ทำงาน                   | `SPA_ORIGIN` ไม่ตรงกับที่อยู่ในเบราว์เซอร์                              |
+| Order หรือ Catalog ตอบ `502`                             | Kafka ยังไม่พร้อม รอแล้วดู `docker compose logs kafka`                  |
 
 ---
 
@@ -156,11 +158,11 @@ cp .env.example .env
 
 แก้ค่าใน `.env` ให้ตรงกับเครื่องที่รัน
 
-| ตัวแปร | ค่า |
-|---|---|
-| `JWT_PUBLIC_KEY_PATH` | `../auth-service/keys/jwt-public.pem` |
-| `KAFKA_BROKERS` | `localhost:9092` (พอร์ตที่ Compose เปิดให้ภายนอก; `localhost:29092` ในตัวอย่างใช้ได้เฉพาะภายใน Docker) |
-| `HTTP_ADDR` | ใช้ `:8080` ชนกับหน้าเว็บ ให้หยุด `frontend` ก่อนหรือเปลี่ยนพอร์ต |
+| ตัวแปร                | ค่า                                                                                                    |
+| --------------------- | ------------------------------------------------------------------------------------------------------ |
+| `JWT_PUBLIC_KEY_PATH` | `../auth-service/keys/jwt-public.pem`                                                                  |
+| `KAFKA_BROKERS`       | `localhost:9092` (พอร์ตที่ Compose เปิดให้ภายนอก; `localhost:29092` ในตัวอย่างใช้ได้เฉพาะภายใน Docker) |
+| `HTTP_ADDR`           | ใช้ `:8080` ชนกับหน้าเว็บ ให้หยุด `frontend` ก่อนหรือเปลี่ยนพอร์ต                                      |
 
 บริการอ่านค่าจาก environment variable ไม่โหลดไฟล์ `.env` เอง จึงต้อง export ก่อนรัน
 
@@ -348,4 +350,3 @@ frontend/
 ```
 
 ไฟล์ test ของหน้าจอและฟีเจอร์อยู่ข้างไฟล์ที่ทดสอบ (ชื่อลงท้าย `.test.ts` หรือ `.test.tsx`)
-
