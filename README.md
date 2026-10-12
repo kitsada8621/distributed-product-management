@@ -76,8 +76,6 @@ cp order-service/.env.example order-service/.env
 | `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` | อีเมลและรหัสผ่านของ Admin คนแรก                                                                                         |
 | `SMTP_*`                                   | ใช้เฉพาะอีเมลลืมรหัสผ่าน ใส่ค่าจาก Mailtrap หรือ Gmail หรือปล่อย `SMTP_HOST` ว่างเพื่อไม่ส่งอีเมล ส่วนอื่นใช้งานได้ปกติ |
 
-อย่านำรหัสผ่านจริงใส่ในไฟล์ `.env.example` หรือ commit ไฟล์ `.env`
-
 ### ขั้นที่ 5 เริ่มระบบ
 
 ```bash
@@ -112,6 +110,13 @@ curl http://localhost:8000/api/orders/health
 | User  | สมัครเองที่หน้า Register                            |
 
 ลองใช้งาน: Admin สร้างหมวดหมู่และสินค้าพร้อมสต็อก → สมัครและเข้าสู่ระบบเป็น User → สั่งซื้อ (สถานะ Pending แล้วเปลี่ยนเป็นผลการจองสต็อกในไม่กี่วินาที) → Admin ยืนยันหรือปฏิเสธ
+
+สำหรับอีเมลล์และรหัสผ่านที่ใช้สำหรับทดสอบ สามารถกำหนดในไฟล์ `.env` ที่อยู่ภายนอกสุด หรือดูจาก `.env.example` ถ้าไม่ได้กำหนด อีเมลล์และรหัสผ่านเดิมคือ
+
+```
+email: admin@example.com
+password: P@ssw0rd!
+```
 
 ### คำสั่งที่ใช้บ่อย
 
@@ -307,8 +312,6 @@ order-service/
 └── go.sum
 ```
 
-การทดสอบของ Order เป็น unit test ของกฎธุรกิจใน `internal/domain` และ `internal/usecase` (ไฟล์ `*_test.go` อยู่ข้างไฟล์ที่ทดสอบ)
-
 ### 4.4 Feature-Based Architecture: frontend (React)
 
 แยกโค้ดตามฟีเจอร์ธุรกิจ ไม่แยกตามชนิดไฟล์ โดยมีกฎว่า `app` เรียก `pages`, `pages` เรียก `features`, `features` เรียก `shared` เท่านั้น และ `shared` ห้ามเรียก `features`
@@ -349,4 +352,279 @@ frontend/
     └── test/                           # ตัวช่วยและการตั้งค่าสำหรับ test
 ```
 
-ไฟล์ test ของหน้าจอและฟีเจอร์อยู่ข้างไฟล์ที่ทดสอบ (ชื่อลงท้าย `.test.ts` หรือ `.test.tsx`)
+---
+
+## 5. ER Diagram
+
+แต่ละบริการมีฐานข้อมูล SQLite ของตนเอง จึงไม่มี foreign key ข้ามบริการ การอ้างอิงข้ามบริการเก็บเป็นค่า id ธรรมดา
+
+## 5.1. ภาพรวมข้ามบริการ
+
+```mermaid
+erDiagram
+    USERS ||..o{ ORDERS : "user_id (อ้างด้วยค่า)"
+    PRODUCTS ||..o{ ORDER_ITEMS : "product_id (อ้างด้วยค่า)"
+    ORDERS ||--o{ ORDER_ITEMS : "มีหลายรายการ"
+    ORDERS ||..o| RESERVATIONS : "order_id (อ้างด้วยค่า)"
+
+    USERS { text id PK }
+    PRODUCTS { text id PK }
+    ORDERS { text id PK }
+    ORDER_ITEMS { text id PK }
+    RESERVATIONS { text order_id PK }
+```
+
+| บริการ                 | ตารางหลัก                  |
+| ---------------------- | -------------------------- |
+| Auth (`auth.db`)       | `users`                    |
+| Catalog (`catalog.db`) | `products`, `reservations` |
+| Order (`order.db`)     | `orders`, `order_items`    |
+
+## 5.2 Auth Service (`auth.db`)
+
+```mermaid
+erDiagram
+    users ||--o{ refresh_tokens : "has"
+    users ||--o{ reset_tokens : "requests"
+    users ||--o{ email_outbox : "receives"
+
+    users {
+        TEXT id PK
+        TEXT email UK
+        TEXT name
+        TEXT password_hash
+        TEXT role "user | admin"
+        INTEGER failed_attempts
+        TEXT locked_until "nullable"
+        TEXT created_at
+        TEXT updated_at
+    }
+    refresh_tokens {
+        TEXT id PK
+        TEXT user_id FK
+        TEXT family_id
+        TEXT token_hash UK
+        TEXT expires_at
+        TEXT used_at "nullable"
+        TEXT revoked_at "nullable"
+        TEXT created_at
+    }
+    reset_tokens {
+        TEXT id PK
+        TEXT user_id FK
+        TEXT token_hash UK
+        TEXT expires_at
+        TEXT used_at "nullable"
+        TEXT created_at
+    }
+    email_outbox {
+        TEXT id PK
+        TEXT user_id FK
+        TEXT to_email
+        TEXT subject
+        TEXT body
+        TEXT status "Pending | Sent | Failed"
+        INTEGER attempts
+        TEXT next_attempt_at
+        TEXT last_error "nullable"
+        TEXT created_at
+        TEXT sent_at "nullable"
+    }
+```
+
+## 5.3 Catalog Service (`catalog.db`)
+
+```mermaid
+erDiagram
+    categories |o--o{ products : "contains"
+    reservations ||--|{ reservation_items : "has"
+
+    categories {
+        TEXT id PK
+        TEXT name "unique เฉพาะที่ยังไม่ถูกลบ"
+        INTEGER is_deleted "0 | 1 (soft delete)"
+        TEXT deleted_at "nullable"
+        TEXT created_at
+        TEXT updated_at
+    }
+    products {
+        TEXT id PK
+        TEXT category_id FK "nullable"
+        TEXT name
+        TEXT description "default ว่าง"
+        INTEGER price_minor "> 0"
+        INTEGER stock ">= 0"
+        INTEGER is_deleted "0 | 1"
+        TEXT deleted_at "nullable"
+        TEXT created_at
+        TEXT updated_at
+    }
+    reservations {
+        TEXT order_id PK "logical ref to order.db"
+        TEXT status "Reserved | Committed | Released"
+        TEXT created_at
+        TEXT updated_at
+    }
+    reservation_items {
+        TEXT reservation_id PK, FK
+        TEXT product_id PK "logical ref (no FK to products)"
+        INTEGER quantity "> 0"
+    }
+    outbox {
+        TEXT id PK "eventId"
+        TEXT topic
+        TEXT message_key
+        TEXT payload
+        TEXT correlation_id
+        TEXT status "Pending | Sent"
+        INTEGER attempts
+        TEXT next_attempt_at
+        TEXT created_at
+        TEXT sent_at "nullable"
+    }
+    inbox {
+        TEXT event_id PK
+        TEXT topic
+        TEXT processed_at
+    }
+```
+
+ตาราง `outbox` และ `inbox` ไม่ผูกกับตารางอื่น ใช้เก็บ event ที่รอส่งและ event ที่ประมวลผลแล้วเพื่อกันการทำซ้ำ
+
+การลบหมวดหมู่เป็น soft delete (`is_deleted`) และสินค้าในหมวดนั้นจะมี `category_id` เป็นค่าว่าง ไม่ถูกลบตาม
+
+## 5.4 Order Service (`order.db`)
+
+```mermaid
+erDiagram
+    orders ||--|{ order_items : "contains"
+    orders ||--o| idempotency_keys : "created by"
+
+    orders {
+        TEXT id PK
+        TEXT user_id "logical ref: JWT sub"
+        TEXT owner_email "snapshot from JWT"
+        TEXT status "Pending | Confirmed | Rejected | Cancelled"
+        TEXT stock_status "Reserving | Reserved"
+        INTEGER total_minor "nullable until Reserved"
+        TEXT rejection_type "nullable: STOCK_UNAVAILABLE | TIMEOUT | ADMIN_REJECTED"
+        TEXT rejection_message "nullable: เหตุผลที่ Admin ระบุ"
+        TEXT recipient_name "delivery address, immutable"
+        TEXT phone
+        TEXT address_line
+        TEXT province
+        TEXT postal_code
+        TEXT payment_method "CASH_ON_DELIVERY | PAY_AT_STORE"
+        TEXT created_at
+        TEXT updated_at
+    }
+    order_items {
+        TEXT id PK
+        TEXT order_id FK
+        TEXT product_id "logical ref to catalog"
+        INTEGER quantity "> 0"
+        TEXT product_name "snapshot, nullable until Reserved"
+        INTEGER unit_price_minor "snapshot, nullable until Reserved"
+        TEXT failure_reason "nullable: INSUFFICIENT_STOCK | PRODUCT_NOT_FOUND"
+        INTEGER failure_requested "nullable"
+        INTEGER failure_available "nullable"
+    }
+    idempotency_keys {
+        TEXT user_id PK
+        TEXT idempotency_key PK
+        TEXT order_id FK
+        TEXT request_hash
+        TEXT created_at
+    }
+    outbox {
+        TEXT id PK "eventId"
+        TEXT topic
+        TEXT message_key
+        TEXT payload
+        TEXT correlation_id
+        TEXT status "Pending | Sent"
+        INTEGER attempts
+        TEXT next_attempt_at
+        TEXT created_at
+        TEXT sent_at "nullable"
+    }
+    inbox {
+        TEXT event_id PK
+        TEXT topic
+        TEXT processed_at
+    }
+```
+
+คำสั่งซื้อที่ถูกปฏิเสธเก็บเหตุผลไว้ที่ `rejection_type` และ `rejection_message` ส่วนเหตุผลรายสินค้า (สต็อกไม่พอหรือไม่พบสินค้า) เก็บใน `order_items.failure_*`
+
+ชื่อและราคาสินค้าใน `order_items` เป็นสำเนา ณ เวลาที่สั่ง จึงไม่เปลี่ยนตามการแก้ไขหรือลบสินค้าใน Catalog
+
+---
+
+## 6. Sequence Diagram
+
+แผนภาพนี้แสดงเส้นทางหลักของระบบ ตั้งแต่เข้าสู่ระบบ ดูสินค้า สั่งซื้อ จนถึง Admin ยืนยันคำสั่งซื้อ
+
+```mermaid
+sequenceDiagram
+    actor U as ผู้ใช้
+    actor AD as Admin
+    participant K as Kong
+    participant A as Auth Service
+    participant C as Catalog Service
+    participant O as Order Service
+    participant KF as Kafka
+
+    Note over U,A: 1. เข้าสู่ระบบ
+    U->>K: POST /api/auth/login
+    K->>A: ส่งต่อคำขอ
+    A-->>U: access token (JWT) และ refresh token
+
+    Note over U,C: 2. ดูสินค้า (ไม่ต้องเข้าสู่ระบบก็ได้)
+    U->>K: GET /api/catalog/products
+    K->>C: ส่งต่อคำขอ
+    C-->>U: รายการสินค้า
+
+    Note over U,KF: 3. สร้างคำสั่งซื้อ
+    U->>K: POST /api/orders (Bearer token + Idempotency-Key)
+    K->>O: ส่งต่อคำขอ
+    O->>O: ตรวจ token ด้วย public key, บันทึกคำสั่งซื้อสถานะ Pending
+    O-->>U: 202 Accepted (ได้เลขคำสั่งซื้อ)
+    O->>KF: order.created
+    KF->>C: ส่ง event ให้ Catalog
+
+    Note over C,O: 4. ตัดสต็อกและตอบผล
+    alt สต็อกเพียงพอทุกรายการ
+        C->>C: ตัดสต็อกและบันทึกการจอง
+        C->>KF: stock.reserved (ชื่อและราคาสินค้า)
+        KF->>O: ส่ง event ให้ Order
+        O->>O: บันทึกราคาและยอดรวม
+    else สต็อกไม่พอหรือไม่พบสินค้า
+        C->>KF: stock.rejected (เหตุผลรายสินค้า)
+        KF->>O: ส่ง event ให้ Order
+        O->>O: เปลี่ยนสถานะเป็น Rejected
+    end
+
+    loop ทุก 2 วินาที
+        U->>K: GET /api/orders/{id}
+        K->>O: ส่งต่อคำขอ
+        O-->>U: สถานะปัจจุบัน
+    end
+
+    Note over AD,C: 5. Admin ตัดสินใจ
+    AD->>K: POST /api/orders/{id}/confirm
+    K->>O: ส่งต่อคำขอ
+    O->>O: เปลี่ยนสถานะเป็น Confirmed
+    O->>KF: order.confirmed
+    KF->>C: ยืนยันการตัดสต็อกถาวร
+
+    Note over U,C: กรณียกเลิกหรือถูกปฏิเสธ: Order ส่ง order.cancelled และ Catalog คืนสต็อก
+```
+
+## คำอธิบายขั้นตอน
+
+1. ผู้ใช้เข้าสู่ระบบกับ Auth Service และได้ token สำหรับใช้เรียกบริการอื่น
+2. ผู้ใช้ดูสินค้าจาก Catalog ได้โดยไม่ต้องเข้าสู่ระบบ
+3. เมื่อสั่งซื้อ Order Service บันทึกคำสั่งซื้อแล้วตอบกลับทันทีว่ารับเรื่องแล้ว (202) โดยยังไม่รู้ราคาหรือสต็อก เพราะไม่ได้เรียก Catalog โดยตรง
+4. Catalog ได้รับ event ไปตัดสต็อก ถ้าสินค้าครบทุกรายการจึงสำเร็จ ถ้ารายการใดไม่พอ ทั้งคำสั่งซื้อจะถูกปฏิเสธ (all-or-nothing) หน้าเว็บสอบถามสถานะทุก 2 วินาทีจนกว่าจะได้ผล
+5. Admin ยืนยันหรือปฏิเสธคำสั่งซื้อที่จองสต็อกสำเร็จแล้ว หากถูกปฏิเสธหรือผู้ใช้ยกเลิก ระบบคืนสต็อกให้อัตโนมัติ และหากไม่ได้รับผลจาก Catalog ภายใน 60 วินาที ระบบจะปฏิเสธคำสั่งซื้อนั้นเองและคืนสต็อก
